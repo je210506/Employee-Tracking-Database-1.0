@@ -1,5 +1,5 @@
 import inquirer from 'inquirer';
-import {pool, connectToDb} from './db/connection';
+import {pool, connectToDb} from './db/connection.js';
 
 //add a department
 async function addDepartment() {
@@ -19,31 +19,64 @@ async function addDepartment() {
     }
 }
 
-//add employee
+//add employee //not working
 async function addEmployee() {
-    const {firstName, lastName} = await inquirer.prompt([
-       {
-        type: 'input',
-        name: 'firstName',
-        message: 'Enter the new employee\'s name:',
-        validate: (input) => input.trim() !== '' || 'First name cannot be empty.'
-       },
-       {
-        type: 'input',
-        name: 'lastName',
-        message: 'lastName',
-        validate: (input) => input.trim() !== '' || 'Last name cannot be empty.'
-       }
-    ]);
     try {
-        await pool.query('INSERT INTO employee (first_name, last_name) VALUES ($1, $2)', [firstName, lastName]);
-        console.log(`The new employee, "${firstName} ${lastName}" was added successfully! YAY!`);
+        //get roles from the database
+        const rolesResult = await pool.query('SELECT id, title FROM role');
+        const roles = rolesResult.rows;
+
+        const managersResult = await pool.query('SELECT id, first_name, last_name WHERE manager_id IS NOT NULL');
+        const managers = managersResult.rows;
+        //find the managers(existing employees)
+        const {firstName, lastName, roleID, managerID} = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'firstName',
+                message: 'Enter the employee\'s first name:',
+                validate: (input) => input.trim() !== '' || 'First name cannot be empty.' 
+            },
+            {
+                type: 'input',
+                name: 'lastName',
+                message: 'Enter the employee\'s last name:',
+                validate: (input) => input.trim() !== '' || 'Last name cannot be empty.'
+            },
+            {
+                type: 'list',
+                name: 'roleID',
+                message: 'Select the role for the new employee:',
+                choices: roles.map(role => ({
+                    name: role.title,
+                    value: role.id
+                }))
+            },
+            {
+                type: 'list',
+                name: 'managerID',
+                message: 'Select the manager for the new employee:',
+                choices: [
+                    {name: 'none', value: null},
+                    ...managers.map(manager => ({
+                        name: `${manager.first_name} ${manager.last_name}`,
+                        value: manager.id
+                    }))
+                ]
+            }
+        ]);
+
+        //insert new employee into my database
+        await pool.query(
+            'INSERT INTO employee(first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)',
+            [firstName, lastName, roleID, managerID]
+        );
+        console.log(`The new employee "${firstName} ${lastName}" was added successfully! Yay!`);
     } catch (error) {
-        console.log('Error adding the employees. Yikes!', error);
+        console.error('Error adding the new employee. Try again.', error);
     }
 }
 
-//add role
+//add role // add salary and department ID
 async function addRole() {
     const {roleName} = await inquirer.prompt([
        {
@@ -55,7 +88,7 @@ async function addRole() {
     ]);
     try {
         await pool.query('INSERT INTO role (name) VALUES ($1)', [roleName]);
-        console.log(`Department "${roleName}" was added successfully! YAY!`);
+        console.log(`The role, "${roleName}" was added successfully! YAY!`);
     } catch (error) {
         console.log('Error adding role. Try again.', error);
     }
@@ -74,7 +107,21 @@ async function viewDepartments() {
 //view all employees
 async function viewAllEmployees() {
     try {
-        const result = await pool.query('SELECT * FROM employee');
+        const result = await pool.query(`
+            SELECT
+                e.id AS employee_id,
+                e.first_name,
+                e.last_name,
+                r.title AS role,
+                d.name AS department,
+                r.salary,
+                e.manager_id,
+                CONCAT(m.first_name, ' ', m.last_name) AS manager_name
+            FROM employee e
+            JOIN role r ON e.role_id = r.id
+            JOIN department d ON r.department_id = d.id
+            LEFT JOIN employee m ON e.manager_id = m.id
+            `);
         console.table(result.rows);
     } catch (error) {
         console.error('Error fetching employees. Try again.', error);
@@ -145,7 +192,7 @@ async function mainMenu() {
             type: 'list',
             name: 'action',
             message: 'What would you like to do? :)',
-            choices: ['View ALL Employees', 'View all Roles', 'View all Departments', 'Add Employee', 'Add Role', 'Add Department', 'Update an Employee Role', 'Exit']
+            choices: ['View all Employees', 'View all Roles', 'View all Departments', 'Add Employee', 'Add Role', 'Add Department', 'Update an Employee Role', 'Exit']
         }
     ])
     switch(action) {
@@ -155,10 +202,10 @@ async function mainMenu() {
         case 'View all Departments':
             await viewDepartments();
             break;
-        case 'View All Employees':
+        case 'View all Employees':
             await viewAllEmployees();
             break;
-        case 'View All Roles':
+        case 'View all Roles':
             await viewAllRoles();
             break;
         case 'Add Employee':
