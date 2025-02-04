@@ -55,7 +55,7 @@ psql -U your_db_username
 ## Usage 
 1. Start the Application.
 ```
-node index.js
+npm run start
 ```
 
 2. Follow the Prompts:
@@ -63,6 +63,9 @@ Use the arrow Keys to navigate and select options.
 
 3. Database Updates:
 Each selection interacts with the PostgreSQL database to add, update, or retrieve employee information.
+
+Video Example:
+https://drive.google.com/file/d/15pRwoS7fx6uiYy6W3ZhUJ7ie2bI_vXQ9/view
 
 
 ## License 
