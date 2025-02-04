@@ -30,8 +30,10 @@ cd employee-tracker
 npm install
 ```
 This will install the required packages, including:
--```pg``` for PostgreSQL database
--```inquirer``` for command-line prompts
+
+```pg``` for PostgreSQL database
+
+```inquirer``` for command-line prompts
 
 3. Configure Environment Variables:
 Create an ```.env``` file in the root directory:
@@ -44,9 +46,9 @@ DB_NAME=employee_tracker
 4. Set up the Database:
 Run the provided SQL schema to create the necessary tables:
 ```
-psql -U your_db_username 
-\d employee_tracker 
-i\ db/schema.sql
+psql -U your_db_username  
+\i schema.sql;
+\i seed.sql;
 ```
 
 
