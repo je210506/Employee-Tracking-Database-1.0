@@ -12,6 +12,12 @@ async function addDepartment() {
        } 
     ]);
     try {
+        const existingDepartmentResult = await pool.query('SELECT * FROM department WHERE name = $1', [departmentName]);
+
+        if(existingDepartmentResult.rows.length >0) {
+            console.log(`Department ${departmentName} already exists.`);
+            return;
+        }
         await pool.query('INSERT INTO department (name) VALUES ($1)', [departmentName]);
         console.log(`Department "${departmentName}" was added successfully! YAY!`);
     } catch (error) {
@@ -19,14 +25,14 @@ async function addDepartment() {
     }
 }
 
-//add employee //not working
+//add employee
 async function addEmployee() {
     try {
         //get roles from the database
         const rolesResult = await pool.query('SELECT id, title FROM role');
         const roles = rolesResult.rows;
 
-        const managersResult = await pool.query('SELECT id, first_name, last_name WHERE manager_id IS NOT NULL');
+        const managersResult = await pool.query('SELECT id, first_name, last_name FROM employee');
         const managers = managersResult.rows;
         //find the managers(existing employees)
         const {firstName, lastName, roleID, managerID} = await inquirer.prompt([
@@ -78,21 +84,19 @@ async function addEmployee() {
 
 //add role // add salary and department ID
 async function addRole() {
-    const {roleName} = await inquirer.prompt([
-       {
-        type: 'input',
-        name: 'roleName',
-        message: 'Enter a role name:',
-        validate: (input) => input.trim() !== '' || 'Role name cannot be empty.'
-       } 
-    ]);
     try {
-        await pool.query('INSERT INTO role (name) VALUES ($1)', [roleName]);
-        console.log(`The role, "${roleName}" was added successfully! YAY!`);
-    } catch (error) {
-        console.log('Error adding role. Try again.', error);
+        const departments = await pool.query('SELECT * FROM department;');
+        const { title, salary, department_id } = await inquirer.prompt([
+          { type: 'input', name: 'title', message: 'Enter role title:' },
+          { type: 'input', name: 'salary', message: 'Enter salary:', validate: input => !isNaN(input) || 'Please enter a valid number' },
+          { type: 'list', name: 'department_id', message: 'Select department:', choices: departments.rows.map((d: { name: any; id: any; }) => ({ name: d.name, value: d.id })) }
+        ]);
+        await pool.query('INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3);', [title, parseFloat(salary), department_id]);
+        console.log(`Role "${title}" added!`);
+      } catch (err) {
+        console.error('Error adding role:', err);
+      }
     }
-}
 
 // view all departments
 async function viewDepartments() {
